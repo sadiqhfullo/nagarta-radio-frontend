@@ -1,3 +1,4 @@
+// src/components/ProtectedRoute.js
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { getCurrentUser, getUserRole } from '../utils/auth';
@@ -14,11 +15,21 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
       }
 
       let role = localStorage.getItem('userRole');
+
       if (!role) {
         role = await getUserRole();
+        if (role) {
+          localStorage.setItem('userRole', role);
+        } else {
+          setAuthorized(false);
+          return;
+        }
       }
 
-      if (allowedRoles.includes(role)) {
+      role = role.toLowerCase().trim(); // Normalize
+      console.log('User Role:', role);
+
+      if (allowedRoles.map(r => r.toLowerCase().trim()).includes(role)) {
         setAuthorized(true);
       } else {
         setAuthorized(false);

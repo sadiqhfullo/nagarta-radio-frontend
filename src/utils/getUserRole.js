@@ -1,5 +1,6 @@
-import { supabase } from '../supabaseClient';
+import { supabase } from './supabaseClient'; // update path if needed
 
+// Utility to fetch or create the user's profile
 export const getUserRole = async () => {
   const {
     data: { user },
@@ -15,14 +16,11 @@ export const getUserRole = async () => {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .maybeSingle();
+    .maybeSingle(); // safer than .single()
 
-  if (error) {
-    console.error('Error fetching role:', error.message);
-    return null;
-  }
-
+  // If profile does not exist, create it with default values
   if (!data) {
+    console.warn('No profile found. Creating default profile...');
     const { error: insertError } = await supabase.from('profiles').insert([
       {
         id: user.id,
@@ -39,23 +37,13 @@ export const getUserRole = async () => {
       return null;
     }
 
-    return 'user';
+    return 'user'; // default role
   }
 
-  return data.role;
-};
-
-// ✅ Add this function to fix your error
-export const getCurrentUser = async () => {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    console.error('Error fetching user:', error?.message);
+  if (error) {
+    console.error('Error fetching role:', error.message);
     return null;
   }
 
-  return user;
+  return data.role;
 };

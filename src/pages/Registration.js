@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 import './Registration.css';
 
 const Registration = () => {
-  const [name, setName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [state, setState] = useState('');
@@ -22,29 +22,52 @@ const Registration = () => {
     setError(null);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // Step 1: Sign up user with email and password
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
-        password: password,
-        options: {
-          data: {
-            full_name: name.trim(),
-            state: state.trim(),
-            role: role,
-          },
-        },
+        password,
       });
 
-      if (error) {
-        console.error('Supabase error:', error.message);
-        setError(error.message);
-      } else {
-        console.log('Registration successful:', data);
-        setRegistrationSuccess(true);
-        setTimeout(() => navigate('/login'), 3000);
+      if (signUpError) {
+        setError(signUpError.message);
+        setLoading(false);
+        return;
       }
+
+      if (!signUpData.user) {
+        setError('User data not returned from Supabase');
+        setLoading(false);
+        return;
+      }
+
+      const userId = signUpData.user.id;
+
+      // Step 2: Insert additional profile info into 'profiles' table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          full_name: fullName,
+          email: email.trim(),
+          state,
+          role,
+          created_at: new Date().toISOString(),
+        }, { onConflict: 'id' }); // upsert on id
+
+      if (profileError) {
+        setError('Profile update error: ' + profileError.message);
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Success
+      setRegistrationSuccess(true);
+
+      // Redirect to login page after 3 seconds
+      setTimeout(() => navigate('/login'), 3000);
+
     } catch (err) {
-      console.error('Unexpected error:', err.message);
-      setError('An unexpected error occurred. Please try again.');
+      setError('Unexpected error: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -57,24 +80,25 @@ const Registration = () => {
 
         {!registrationSuccess ? (
           <form onSubmit={handleSignUp}>
+
             <div className="input-group">
-              <label className="label" htmlFor="name">Name:</label>
+              <label htmlFor="fullName" className="label">Full Name:</label>
               <input
+                id="fullName"
                 className="input"
                 type="text"
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 required
               />
             </div>
 
             <div className="input-group">
-              <label className="label" htmlFor="email">Email:</label>
+              <label htmlFor="email" className="label">Email:</label>
               <input
+                id="email"
                 className="input"
                 type="email"
-                id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -82,11 +106,11 @@ const Registration = () => {
             </div>
 
             <div className="input-group">
-              <label className="label" htmlFor="password">Password:</label>
+              <label htmlFor="password" className="label">Password:</label>
               <input
+                id="password"
                 className="input"
                 type="password"
-                id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -94,11 +118,11 @@ const Registration = () => {
             </div>
 
             <div className="input-group">
-              <label className="label" htmlFor="state">State:</label>
+              <label htmlFor="state" className="label">State:</label>
               <input
+                id="state"
                 className="input"
                 type="text"
-                id="state"
                 value={state}
                 onChange={(e) => setState(e.target.value)}
                 required
@@ -106,10 +130,10 @@ const Registration = () => {
             </div>
 
             <div className="input-group">
-              <label className="label" htmlFor="role">Role:</label>
+              <label htmlFor="role" className="label">Role:</label>
               <select
-                className="input"
                 id="role"
+                className="input"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
               >
@@ -132,7 +156,6 @@ const Registration = () => {
         ) : (
           <div className="success-message">
             🎉 Registration successful! 🎉
-            <p>Please check your email to verify your account.</p>
             <p>Redirecting to login page in 3 seconds...</p>
           </div>
         )}
