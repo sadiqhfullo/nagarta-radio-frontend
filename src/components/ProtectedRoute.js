@@ -1,48 +1,31 @@
 // src/components/ProtectedRoute.js
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { getCurrentUser, getUserRole } from '../utils/auth';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const [authorized, setAuthorized] = useState(null); // null = loading, false = unauthorized, true = allowed
+  const [authorized, setAuthorized] = useState(null);
 
   useEffect(() => {
-    const checkAuthorization = async () => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setAuthorized(false);
+        return;
+      }
+
       try {
-        const user = await getCurrentUser();
-
-        if (!user) {
-          console.warn('No user found');
-          setAuthorized(false); // Not logged in
-          return;
-        }
-
-        let role = localStorage.getItem('userRole');
-
-        if (!role) {
-          role = await getUserRole();
-          if (!role) {
-            console.warn('User role not found or failed to fetch');
-            setAuthorized(false);
-            return;
-          }
-          localStorage.setItem('userRole', role);
-        }
-
-        // Normalize both user role and allowedRoles
-        const normalizedRole = role.toLowerCase().trim();
-        const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase().trim());
-
-        console.log('User Role:', normalizedRole);
-
-        setAuthorized(normalizedAllowedRoles.includes(normalizedRole));
-      } catch (err) {
-        console.error('Authorization check failed:', err.message);
+        const snap = await getDoc(doc(db, 'profiles', user.uid));
+        const role = snap.exists() ? snap.data().role.toLowerCase() : null;
+        setAuthorized(allowedRoles.includes(role));
+      } catch (error) {
+        console.error('Error checking access:', error);
         setAuthorized(false);
       }
-    };
+    });
 
-    checkAuthorization();
+    return () => unsubscribe();
   }, [allowedRoles]);
 
   if (authorized === null) return <div>Loading...</div>;

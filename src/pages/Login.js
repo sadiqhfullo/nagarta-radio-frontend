@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import '../styles/Auth.css';
-import { getUserRole } from '../utils/auth';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -16,37 +17,25 @@ const Login = () => {
     setLoading(true);
     setError(null);
 
-    // Clear cached role on every login attempt
-    localStorage.removeItem('userRole');
-
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password,
-      });
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
 
-      if (signInError) {
-        setError(signInError.message);
-      } else {
-        const role = await getUserRole();
+      const profileRef = doc(db, 'profiles', uid);
+      const profileSnap = await getDoc(profileRef);
 
-        console.log('Logged in user role:', role);
+      if (profileSnap.exists()) {
+        const role = profileSnap.data().role?.toLowerCase() ?? 'user';
 
-        if (!role) {
-          setError('Unable to fetch user role. Please try again.');
-          setLoading(false);
-          return;
-        }
-
-        if (role.toLowerCase().trim() === 'admin') {
+        if (role === 'admin') {
           navigate('/admin-dashboard');
-        } else if (role.toLowerCase().trim() === 'staff') {
+        } else if (role === 'staff') {
           navigate('/staff-dashboard');
-        } else if (role.toLowerCase().trim() === 'user') {
-          navigate('/home');
         } else {
-          navigate('/unauthorized');
+          navigate('/home');
         }
+      } else {
+        setError('Profile not found');
       }
     } catch (err) {
       setError(err.message);
@@ -62,26 +51,12 @@ const Login = () => {
         <form onSubmit={handleSignIn}>
           <div className="input-group">
             <label className="label" htmlFor="email">Email:</label>
-            <input
-              className="input"
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <input className="input" type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
 
           <div className="input-group">
             <label className="label" htmlFor="password">Password:</label>
-            <input
-              className="input"
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <input className="input" type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
 
           <button className="button" type="submit" disabled={loading}>

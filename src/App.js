@@ -7,7 +7,11 @@ import Home from './pages/HomePage';
 import AdminDashboard from './pages/AdminDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import Unauthorized from './pages/Unauthorized';
+import ManageUsers from './pages/ManageUsers';
+import ManageStaff from './pages/ManageStaff';
+import ManagePrograms from './pages/ManagePrograms';
 import ProtectedRoute from './components/ProtectedRoute';
+import UploadProgram from './pages/uploads/UploadProgram';
 
 function App() {
   return (
@@ -16,7 +20,18 @@ function App() {
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/register" element={<Registration />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/home" element={<Home />} />
+<Route path="/uploads" element={<UploadProgram />} />
+
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute allowedRoles={['user', 'admin', 'staff']}>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin-only routes */}
         <Route
           path="/admin-dashboard"
           element={
@@ -26,6 +41,31 @@ function App() {
           }
         />
         <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <ManageUsers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/staff"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <ManageStaff />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/programs"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <ManagePrograms />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/staff-dashboard"
           element={
             <ProtectedRoute allowedRoles={['staff']}>
@@ -33,14 +73,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-  path="/home"
-  element={
-    <ProtectedRoute allowedRoles={['user', 'admin', 'staff']}>
-      <Home />
-    </ProtectedRoute>
-  }
-/>
 
         <Route path="/unauthorized" element={<Unauthorized />} />
       </Routes>
