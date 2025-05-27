@@ -1,4 +1,3 @@
-// src/pages/Login.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -17,6 +16,9 @@ const Login = () => {
     setLoading(true);
     setError(null);
 
+    // Clear cached role on every login attempt
+    localStorage.removeItem('userRole');
+
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -25,37 +27,29 @@ const Login = () => {
 
       if (signInError) {
         setError(signInError.message);
-        setLoading(false);
-        return;
-      }
+      } else {
+        const role = await getUserRole();
 
-      const role = await getUserRole();
+        console.log('Logged in user role:', role);
 
-      if (!role) {
-        setError('Unable to fetch user role. Please try again.');
-        setLoading(false);
-        return;
-      }
+        if (!role) {
+          setError('Unable to fetch user role. Please try again.');
+          setLoading(false);
+          return;
+        }
 
-      localStorage.setItem('userRole', role); // Store role
-
-      // Redirect based on role
-      switch (role) {
-        case 'admin':
+        if (role.toLowerCase().trim() === 'admin') {
           navigate('/admin-dashboard');
-          break;
-        case 'staff':
+        } else if (role.toLowerCase().trim() === 'staff') {
           navigate('/staff-dashboard');
-          break;
-        case 'user':
+        } else if (role.toLowerCase().trim() === 'user') {
           navigate('/home');
-          break;
-        default:
+        } else {
           navigate('/unauthorized');
+        }
       }
     } catch (err) {
-      console.error(err);
-      setError('An unexpected error occurred.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }

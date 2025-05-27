@@ -22,6 +22,7 @@ export const getUserRole = async () => {
     return null;
   }
 
+  // If no profile exists, insert default and return 'user'
   if (!data) {
     const { error: insertError } = await supabase.from('profiles').insert([
       {
@@ -42,10 +43,10 @@ export const getUserRole = async () => {
     return 'user';
   }
 
-  return data.role;
+  // ✅ Normalize role to lowercase
+  return data.role.toLowerCase();
 };
 
-// ✅ Add this function to fix your error
 export const getCurrentUser = async () => {
   const {
     data: { user },

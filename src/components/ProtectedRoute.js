@@ -4,39 +4,45 @@ import { Navigate } from 'react-router-dom';
 import { getCurrentUser, getUserRole } from '../utils/auth';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const [authorized, setAuthorized] = useState(null);
+  const [authorized, setAuthorized] = useState(null); // null = loading, false = unauthorized, true = allowed
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const user = await getCurrentUser();
-      if (!user) {
-        setAuthorized(false);
-        return;
-      }
+    const checkAuthorization = async () => {
+      try {
+        const user = await getCurrentUser();
 
-      let role = localStorage.getItem('userRole');
-
-      if (!role) {
-        role = await getUserRole();
-        if (role) {
-          localStorage.setItem('userRole', role);
-        } else {
-          setAuthorized(false);
+        if (!user) {
+          console.warn('No user found');
+          setAuthorized(false); // Not logged in
           return;
         }
-      }
 
-      role = role.toLowerCase().trim(); // Normalize
-      console.log('User Role:', role);
+        let role = localStorage.getItem('userRole');
 
-      if (allowedRoles.map(r => r.toLowerCase().trim()).includes(role)) {
-        setAuthorized(true);
-      } else {
+        if (!role) {
+          role = await getUserRole();
+          if (!role) {
+            console.warn('User role not found or failed to fetch');
+            setAuthorized(false);
+            return;
+          }
+          localStorage.setItem('userRole', role);
+        }
+
+        // Normalize both user role and allowedRoles
+        const normalizedRole = role.toLowerCase().trim();
+        const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase().trim());
+
+        console.log('User Role:', normalizedRole);
+
+        setAuthorized(normalizedAllowedRoles.includes(normalizedRole));
+      } catch (err) {
+        console.error('Authorization check failed:', err.message);
         setAuthorized(false);
       }
     };
 
-    checkAuth();
+    checkAuthorization();
   }, [allowedRoles]);
 
   if (authorized === null) return <div>Loading...</div>;
